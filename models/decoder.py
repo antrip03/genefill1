@@ -8,7 +8,8 @@ class GapDecoder(nn.Module):
         self.vocab_size = vocab_size
         
         self.embed = nn.Embedding(vocab_size, hidden_size)
-        self.lstm = nn.LSTM(hidden_size, hidden_size, batch_first=True)
+        self.lstm = nn.LSTM(hidden_size, hidden_size, num_layers=2, dropout=0.2, batch_first=True)
+
         self.ctx2h = nn.Linear(context_dim, hidden_size)
         self.ctx2c = nn.Linear(context_dim, hidden_size)
         self.fc_out = nn.Linear(hidden_size, vocab_size)
@@ -19,8 +20,9 @@ class GapDecoder(nn.Module):
         tgt_in: [batch, gap_len] (int indices)
         Returns: logits [batch, gap_len, vocab_size]
         """
-        h0 = self.ctx2h(ctx).unsqueeze(0)   # [1, B, H]
-        c0 = self.ctx2c(ctx).unsqueeze(0)   # [1, B, H]
+        h0 = self.ctx2h(ctx).unsqueeze(0).repeat(2, 1, 1)  # [2, B, H]
+        c0 = self.ctx2c(ctx).unsqueeze(0).repeat(2, 1, 1)  # [2, B, H]
+
         emb = self.embed(tgt_in)            # [B, G, H]
         out, _ = self.lstm(emb, (h0, c0))   # [B, G, H]
         logits = self.fc_out(out)           # [B, G, V]
@@ -33,8 +35,9 @@ class GapDecoder(nn.Module):
         Returns: [batch, max_len] indices
         """
         batch_size = ctx.size(0)
-        h = self.ctx2h(ctx).unsqueeze(0)
-        c = self.ctx2c(ctx).unsqueeze(0)
+        h = self.ctx2h(ctx).unsqueeze(0).repeat(2, 1, 1)  # [2, B, H]
+        c = self.ctx2c(ctx).unsqueeze(0).repeat(2, 1, 1)  # [2, B, H]
+
         
         input_token = torch.full((batch_size, 1), start_token, 
                                  dtype=torch.long, device=ctx.device)

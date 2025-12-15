@@ -8,7 +8,7 @@ from utils.dataset import GapFillDataset
 # Hyperparameters
 BATCH_SIZE = 32
 LR = 1e-3
-EPOCHS = 30
+EPOCHS = 60
 FLANK_LEN = 200
 GAP_LEN = 50
 CONTEXT_DIM = 256
@@ -33,7 +33,15 @@ optimizer = torch.optim.Adam(
     list(encoder.parameters()) + list(decoder.parameters()),
     lr=LR,
 )
-criterion = nn.CrossEntropyLoss()
+
+wA = 1.0 / 0.345387
+wC = 1.0 / 0.157991
+wG = 1.0 / 0.159173
+wT = 1.0 / 0.337448
+weights = torch.tensor([wA, wC, wG, wT], device=device)
+criterion = nn.CrossEntropyLoss(weight=weights)
+
+
 
 for epoch in range(EPOCHS):
     encoder.train()
