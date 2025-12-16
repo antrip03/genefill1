@@ -15,8 +15,7 @@ class GapFillDataset(Dataset):
         return len(self.samples)
 
     def __getitem__(self, idx):
-        sample = self.samples[idx]
-        left, right, gap = sample[:3]   # ignore any extra fields
+        left, right, gap = self.samples[idx]   # ignore any extra fields
 
 
         left_oh = dna_to_one_hot(left)     # [flank_len, 4]
