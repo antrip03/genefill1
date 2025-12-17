@@ -53,12 +53,12 @@ def wave_beam_search(decoder, ctx, gap_len,
 # ---------- Load dataset ----------
 
 with open("data/processed/gapfill_samples.pkl", "rb") as f:
-    samples = pickle.load(f)
+    all_samples = pickle.load(f)
 
-dataset = GapFillDataset(samples)
-
-TEST_SIZE = 1000 if len(dataset) > 1000 else len(dataset)
-test_dataset = dataset[-TEST_SIZE:]  # simple hold-out slice
+# Split into train and test
+TEST_SIZE = 1000 if len(all_samples) > 1000 else len(all_samples)
+test_samples = all_samples[-TEST_SIZE:]
+test_dataset = GapFillDataset(test_samples)
 
 
 # ---------- Load model ----------
