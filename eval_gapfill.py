@@ -136,7 +136,7 @@ for i in range(n):
     total_token_acc += token_acc
     total_exact += exact
 
-    if i < 5:  # print first 5 examples
+    if i < 11:  # print first 11 examples
         print(f"Example {i}")
         print("TRUE:", idx_to_seq(gap_idx))
         print("PRED:", idx_to_seq(pred_idx))
