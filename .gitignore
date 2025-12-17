@@ -11,7 +11,7 @@ data/processed/*.pt
 *.h5
 
 # Models (checkpoints can be large)
-*.pth
+#*.pth
 *.ckpt
 
 # IDE
