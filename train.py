@@ -63,13 +63,7 @@ optimizer = torch.optim.Adam(
     lr=LR,
 )
 
-# Weighted loss based on nucleotide frequencies in genome
-wA = 1.0 / 0.345387
-wC = 1.0 / 0.157991
-wG = 1.0 / 0.159173
-wT = 1.0 / 0.337448
-weights = torch.tensor([wA, wC, wG, wT], device=device)
-criterion = nn.CrossEntropyLoss(weight=weights)
+criterion = nn.CrossEntropyLoss()  # No weights
 
 print("Starting training...")
 print("=" * 60)
