@@ -14,40 +14,13 @@ VOCAB_SIZE = 4
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# ---------- Wave-beam search ----------
+# ---------- Greedy decoding ----------
 
-BASES = NUCLEOTIDES
-idx_to_base = {i: b for i, b in enumerate(BASES)}
-
-def wave_beam_search(decoder, ctx, gap_len,
-                     beam_size=5, beam_expand=10, wave_period=5):
-    """
-    Wave-beam search over decoder outputs.
-    decoder(ctx, prev_tokens) -> logits over vocab at each step.
-    """
-    candidates = [([], 0.0)]  # (sequence_indices, cumulative_log_prob)
-
-    for step in range(gap_len):
-        cur_beam = beam_expand if (step > 0 and step % wave_period == 0) else beam_size
-        new_cands = []
-
-        for seq, logp in candidates:
-            prev = torch.tensor([[0] + seq], device=ctx.device)  # (1, len+1)
-
-            with torch.no_grad():
-                logits = decoder(ctx, prev)[:, -1, :]          # (1, vocab)
-                logp_step = F.log_softmax(logits[0], dim=-1)   # (vocab,)
-
-            for i in range(len(BASES)):
-                new_seq = seq + [i]
-                new_logp = logp + logp_step[i].item()
-                new_cands.append((new_seq, new_logp))
-
-        new_cands.sort(key=lambda x: x[1], reverse=True)
-        candidates = new_cands[:cur_beam]
-
-    best_seq, _ = candidates[0]
-    return torch.tensor(best_seq, device=ctx.device).unsqueeze(0)  # (1, gap_len)
+def greedy_decode(decoder, ctx, gap_len):
+    """Simple greedy decoding without beam search."""
+    with torch.no_grad():
+        pred_idx = decoder.generate(ctx, gap_len, start_token=0)
+    return pred_idx
 
 
 # ---------- Load dataset ----------
@@ -93,6 +66,8 @@ total_token_acc = 0.0
 total_exact = 0.0
 n = len(test_dataset)
 
+print(f"Evaluating on {n} test samples using GREEDY decoding...\n")
+
 for i in range(n):
     left, right, gap_idx = test_dataset[i]
 
@@ -107,22 +82,21 @@ for i in range(n):
 
     with torch.no_grad():
         ctx = encoder(flanks)
-        pred_idx = wave_beam_search(
-            decoder, ctx, GAP_LEN,
-            beam_size=5, beam_expand=10, wave_period=5,
-        )
+        pred_idx = greedy_decode(decoder, ctx, GAP_LEN)
 
     token_acc, exact = gap_accuracy(gap_idx, pred_idx)
     total_token_acc += token_acc
     total_exact += exact
 
-    if i < 3:  # print a few qualitative examples
+    if i < 5:  # print first 5 examples
         print(f"Example {i}")
         print("TRUE:", idx_to_seq(gap_idx))
         print("PRED:", idx_to_seq(pred_idx))
-        print("token_acc:", token_acc)
+        print("token_acc:", f"{token_acc:.4f}")
         print()
 
-print("Num test gaps:", n)
-print("Avg token-wise accuracy:", total_token_acc / n)
-print("Exact-gap match rate:", total_exact / n)
+print("=" * 60)
+print(f"Num test gaps: {n}")
+print(f"Avg token-wise accuracy: {total_token_acc / n:.4f}")
+print(f"Exact-gap match rate: {total_exact / n:.6f}")
+print("=" * 60)
