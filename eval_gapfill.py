@@ -96,12 +96,14 @@ n = len(test_dataset)
 for i in range(n):
     left, right, gap_idx = test_dataset[i]
 
-    left = left.unsqueeze(0).to(device)      # (1, 4, FLANK_LEN)
-    right = right.unsqueeze(0).to(device)    # (1, 4, FLANK_LEN)
+    # left and right are [FLANK_LEN, 4] from dataset
+    # Need to add batch dim and transpose to [1, 4, FLANK_LEN]
+    left = left.permute(1, 0).unsqueeze(0).to(device)      # [1, 4, FLANK_LEN]
+    right = right.permute(1, 0).unsqueeze(0).to(device)    # [1, 4, FLANK_LEN]
     gap_idx = gap_idx.unsqueeze(0).to(device)
 
-    flanks = torch.cat([left, right], dim=1)   # (1, 4, 2*FLANK_LEN)
-    flanks = flanks.permute(0, 2, 1)          # (1, 2*FLANK_LEN, 4)
+    # Concatenate along sequence dimension
+    flanks = torch.cat([left, right], dim=2)   # [1, 4, 2*FLANK_LEN]
 
     with torch.no_grad():
         ctx = encoder(flanks)
