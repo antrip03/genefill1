@@ -1,8 +1,10 @@
+# eval_gapfill.py - WITH WAVE BEAM SEARCH
+
 import torch
 import torch.nn.functional as F
 import pickle
 
-from models import CNNEncoder, GapDecoder
+from models import CNNBiLSTMEncoder, GapDecoder
 from utils.dataset import GapFillDataset
 from utils.encoding import NUCLEOTIDES
 
@@ -14,7 +16,43 @@ VOCAB_SIZE = 4
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# ---------- Greedy decoding ----------
+# ---------- Wave-beam search ----------
+
+BASES = NUCLEOTIDES
+idx_to_base = {i: b for i, b in enumerate(BASES)}
+
+def wave_beam_search(decoder, ctx, gap_len,
+                     beam_size=5, beam_expand=10, wave_period=5):
+    """
+    Wave-beam search over decoder outputs.
+    decoder(ctx, prev_tokens) -> logits over vocab at each step.
+    """
+    candidates = [([], 0.0)]  # (sequence_indices, cumulative_log_prob)
+
+    for step in range(gap_len):
+        cur_beam = beam_expand if (step > 0 and step % wave_period == 0) else beam_size
+        new_cands = []
+
+        for seq, logp in candidates:
+            prev = torch.tensor([[0] + seq], device=ctx.device)  # (1, len+1)
+
+            with torch.no_grad():
+                logits = decoder(ctx, prev)[:, -1, :]          # (1, vocab)
+                logp_step = F.log_softmax(logits[0], dim=-1)   # (vocab,)
+
+            for i in range(len(BASES)):
+                new_seq = seq + [i]
+                new_logp = logp + logp_step[i].item()
+                new_cands.append((new_seq, new_logp))
+
+        new_cands.sort(key=lambda x: x[1], reverse=True)
+        candidates = new_cands[:cur_beam]
+
+    best_seq, _ = candidates[0]
+    return torch.tensor(best_seq, device=ctx.device).unsqueeze(0)  # (1, gap_len)
+
+
+# ---------- Greedy decoding (backup) ----------
 
 def greedy_decode(decoder, ctx, gap_len):
     """Simple greedy decoding without beam search."""
@@ -36,7 +74,7 @@ test_dataset = GapFillDataset(test_samples)
 
 # ---------- Load model ----------
 
-encoder = CNNEncoder(4, 128, CONTEXT_DIM).to(device)
+encoder = CNNBiLSTMEncoder(4, 128, 128, CONTEXT_DIM).to(device)
 decoder = GapDecoder(CONTEXT_DIM, HIDDEN_SIZE, VOCAB_SIZE).to(device)
 
 encoder.load_state_dict(torch.load("encoder.pth", map_location=device))
@@ -62,11 +100,14 @@ def gap_accuracy(true_idx, pred_idx):
 
 # ---------- Evaluate over many gaps ----------
 
+USE_BEAM_SEARCH = True  # Set to False to use greedy decoding
+
 total_token_acc = 0.0
 total_exact = 0.0
 n = len(test_dataset)
 
-print(f"Evaluating on {n} test samples using GREEDY decoding...\n")
+search_method = "WAVE BEAM SEARCH" if USE_BEAM_SEARCH else "GREEDY"
+print(f"Evaluating on {n} test samples using {search_method}...\n")
 
 for i in range(n):
     left, right, gap_idx = test_dataset[i]
@@ -82,7 +123,14 @@ for i in range(n):
 
     with torch.no_grad():
         ctx = encoder(flanks)
-        pred_idx = greedy_decode(decoder, ctx, GAP_LEN)
+        
+        if USE_BEAM_SEARCH:
+            pred_idx = wave_beam_search(
+                decoder, ctx, GAP_LEN,
+                beam_size=5, beam_expand=10, wave_period=5
+            )
+        else:
+            pred_idx = greedy_decode(decoder, ctx, GAP_LEN)
 
     token_acc, exact = gap_accuracy(gap_idx, pred_idx)
     total_token_acc += token_acc
@@ -96,6 +144,7 @@ for i in range(n):
         print()
 
 print("=" * 60)
+print(f"Decoding method: {search_method}")
 print(f"Num test gaps: {n}")
 print(f"Avg token-wise accuracy: {total_token_acc / n:.4f}")
 print(f"Exact-gap match rate: {total_exact / n:.6f}")
