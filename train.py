@@ -9,7 +9,7 @@ from utils.dataset import GapFillDataset
 
 # Hyperparameters
 BATCH_SIZE = 32
-LR = 3e-3
+LR = 1e-3
 EPOCHS = 60
 FLANK_LEN = 200
 GAP_LEN = 50
