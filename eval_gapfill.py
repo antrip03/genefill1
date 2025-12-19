@@ -1,4 +1,4 @@
-# eval_gapfill.py - WITH WAVE BEAM SEARCH
+# eval_gapfill.py - WITH WAVE BEAM SEARCH (512-DIM CORRECTED)
 
 import torch
 import torch.nn.functional as F
@@ -8,13 +8,12 @@ from models import CNNBiLSTMEncoder, GapDecoder
 from utils.dataset import GapFillDataset
 from utils.encoding import NUCLEOTIDES
 
-# Hyperparameters (match training)
+# Hyperparameters (MUST MATCH train.py - 512-dim)
 FLANK_LEN = 200
 GAP_LEN = 50
-CONTEXT_DIM = 512        # ← Increased
-HIDDEN_SIZE = 512        # ← Increased
+CONTEXT_DIM = 512        # ← 512-dim
+HIDDEN_SIZE = 512        # ← 512-dim
 VOCAB_SIZE = 4
-
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -65,24 +64,41 @@ def greedy_decode(decoder, ctx, gap_len):
 
 # ---------- Load dataset ----------
 
-with open("data/processed/gapfill_samples.pkl", "rb") as f:
+print("Loading dataset...")
+with open("data/processed/mixed_gapfill_samples.pkl", "rb") as f:
     all_samples = pickle.load(f)
 
-# Split into train and test
-TEST_SIZE = 1000 if len(all_samples) > 1000 else len(all_samples)
-test_samples = all_samples[-TEST_SIZE:]
+# Use same test split as training (last 1000)
+test_samples = all_samples[-1000:]
 test_dataset = GapFillDataset(test_samples)
+print(f"Test samples: {len(test_samples)}\n")
 
 
-# ---------- Load model ----------
+# ---------- Load model (CORRECTED ARCHITECTURE) ----------
 
-encoder = CNNBiLSTMEncoder(4, 128, 128, CONTEXT_DIM).to(device)
-decoder = GapDecoder(CONTEXT_DIM, HIDDEN_SIZE, VOCAB_SIZE).to(device)
+print("Initializing models with 512-dim architecture...")
 
+# CRITICAL FIX: Use correct architecture that matches training
+encoder = CNNBiLSTMEncoder(
+    in_channels=4,
+    hidden_channels=32,      # ← Paper spec (was wrongly 128)
+    lstm_hidden=512,         # ← 512-dim (NEW)
+    context_dim=CONTEXT_DIM  # ← 512
+).to(device)
+
+decoder = GapDecoder(
+    context_dim=CONTEXT_DIM,  # ← 512
+    hidden_size=HIDDEN_SIZE,  # ← 512
+    vocab_size=VOCAB_SIZE
+).to(device)
+
+print("Loading weights...")
 encoder.load_state_dict(torch.load("encoder.pth", map_location=device))
 decoder.load_state_dict(torch.load("decoder.pth", map_location=device))
+
 encoder.eval()
 decoder.eval()
+print("✓ Models loaded successfully\n")
 
 
 # ---------- Helpers ----------
@@ -109,7 +125,10 @@ total_exact = 0.0
 n = len(test_dataset)
 
 search_method = "WAVE BEAM SEARCH" if USE_BEAM_SEARCH else "GREEDY"
-print(f"Evaluating on {n} test samples using {search_method}...\n")
+print("=" * 70)
+print(f"EVALUATING ON {n} TEST SAMPLES USING {search_method}")
+print("=" * 70)
+print()
 
 for i in range(n):
     left, right, gap_idx = test_dataset[i]
@@ -142,12 +161,14 @@ for i in range(n):
         print(f"Example {i}")
         print("TRUE:", idx_to_seq(gap_idx))
         print("PRED:", idx_to_seq(pred_idx))
-        print("token_acc:", f"{token_acc:.4f}")
+        print(f"token_acc: {token_acc:.4f}")
         print()
 
-print("=" * 60)
+print("=" * 70)
+print("RESULTS")
+print("=" * 70)
 print(f"Decoding method: {search_method}")
 print(f"Num test gaps: {n}")
 print(f"Avg token-wise accuracy: {total_token_acc / n:.4f}")
 print(f"Exact-gap match rate: {total_exact / n:.6f}")
-print("=" * 60)
+print("=" * 70)
