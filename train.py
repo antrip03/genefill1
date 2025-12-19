@@ -147,7 +147,7 @@ scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
     mode='min', 
     factor=0.5, 
     patience=5, 
-    verbose=True
+    #verbose=True
 )
 
 print("Optimizer: AdamW")
