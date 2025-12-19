@@ -1,63 +1,92 @@
-# models/encoder.py - NEW CNN + BiLSTM Encoder
+# models/encoder.py - CNN + Bi-LSTM Encoder
+# Aligned with DLGapCloser paper specifications
 
 import torch
 import torch.nn as nn
 
 
 class CNNBiLSTMEncoder(nn.Module):
-    def __init__(self, in_channels=4, hidden_channels=128, lstm_hidden=128, context_dim=256):
+    """
+    CNN + Bidirectional LSTM encoder for flanking sequences.
+    
+    Matches DLGapCloser specifications:
+    - CNN: 1D conv with kernel=3, output=32 channels
+    - Bi-LSTM: 512 hidden dimensions (paper spec)
+    - Output: context vector for decoder
+    """
+    def __init__(self, in_channels=4, hidden_channels=32, lstm_hidden=512, context_dim=512):
         super().__init__()
         
-        # Three Conv1d layers for local feature extraction
-        self.conv1 = nn.Conv1d(in_channels, hidden_channels, kernel_size=5, padding=2)
-        self.conv2 = nn.Conv1d(hidden_channels, hidden_channels, kernel_size=5, padding=2)
-        self.conv3 = nn.Conv1d(hidden_channels, hidden_channels, kernel_size=5, padding=2)
+        self.in_channels = in_channels
+        self.hidden_channels = hidden_channels
+        self.lstm_hidden = lstm_hidden
+        self.context_dim = context_dim
         
+        # CNN feature extraction (1D convolution)
+        # Paper spec: kernel_size=3, output channels=32
+        self.conv1d = nn.Conv1d(
+            in_channels=in_channels,
+            out_channels=hidden_channels,
+            kernel_size=3,
+            padding=1
+        )
+        
+        # Activation
         self.relu = nn.ReLU()
-        self.dropout = nn.Dropout(0.2)
         
-        # Bidirectional LSTM to process CNN features
+        # Max pooling to reduce dimensionality
+        self.pool = nn.MaxPool1d(kernel_size=2, stride=2)
+        
+        # Bi-directional LSTM
+        # Paper spec: 512 hidden dimensions
         self.bilstm = nn.LSTM(
             input_size=hidden_channels,
             hidden_size=lstm_hidden,
-            num_layers=2,
-            batch_first=True,
-            bidirectional=True,  # KEY: bidirectional=True
-            dropout=0.2
+            num_layers=1,
+            bidirectional=True,
+            batch_first=True
         )
         
-        # Final linear layer: BiLSTM outputs 2*lstm_hidden (forward + backward)
-        self.fc = nn.Linear(2 * lstm_hidden, context_dim)
+        # Project bi-LSTM output (2*lstm_hidden from bidirectional) to context_dim
+        self.fc_context = nn.Linear(2 * lstm_hidden, context_dim)
+        
+        # Dropout for regularization
+        self.dropout = nn.Dropout(0.2)
 
     def forward(self, x):
         """
-        x: [batch, 4, seq_len] (one-hot encoded DNA)
-        Returns: [batch, context_dim] context vector
+        Forward pass through encoder.
+        
+        Args:
+            x: [batch, 4, seq_len] - one-hot encoded flanking sequences
+        
+        Returns:
+            ctx: [batch, context_dim] - context vector for decoder
         """
         # CNN feature extraction
-        h = self.relu(self.conv1(x))           # [B, H, L]
-        h = self.dropout(h)
-        h = self.relu(self.conv2(h))           # [B, H, L]
-        h = self.dropout(h)
-        h = self.relu(self.conv3(h))           # [B, H, L]
+        # x: [batch, 4, seq_len]
+        conv_out = self.conv1d(x)  # [batch, 32, seq_len]
+        conv_out = self.relu(conv_out)
+        conv_out = self.dropout(conv_out)
         
-        # Prepare for LSTM: [B, H, L] → [B, L, H]
-        h = h.permute(0, 2, 1)                 # [B, L, H]
+        # Max pooling
+        pooled = self.pool(conv_out)  # [batch, 32, seq_len/2]
         
-        # BiLSTM processes sequence in both directions
-        lstm_out, (hidden, cell) = self.bilstm(h)  # lstm_out: [B, L, 2*lstm_hidden]
+        # Transpose for LSTM: [batch, seq_len/2, 32]
+        lstm_input = pooled.transpose(1, 2)
         
-        # Take the last time step from both directions
-        # hidden: [4, B, lstm_hidden] (4 = 2 layers * 2 directions)
-        # Extract last layer's forward and backward hidden states
-        forward_hidden = hidden[-2, :, :]      # [B, lstm_hidden]
-        backward_hidden = hidden[-1, :, :]     # [B, lstm_hidden]
+        # Bi-LSTM
+        lstm_out, (h_n, c_n) = self.bilstm(lstm_input)
         
-        # Concatenate forward and backward
-        combined = torch.cat([forward_hidden, backward_hidden], dim=1)  # [B, 2*lstm_hidden]
+        # lstm_out: [batch, seq_len/2, 2*lstm_hidden]
+        # h_n: [2, batch, lstm_hidden] (2 for bidirectional)
+        
+        # Concatenate final hidden states from both directions
+        h_final = torch.cat([h_n[0], h_n[1]], dim=1)  # [batch, 2*lstm_hidden]
         
         # Project to context dimension
-        ctx = self.fc(combined)                # [B, context_dim]
+        ctx = self.fc_context(h_final)  # [batch, context_dim]
+        ctx = self.dropout(ctx)
         
         return ctx
 
