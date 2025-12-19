@@ -8,11 +8,13 @@ from models import CNNBiLSTMEncoder, GapDecoder
 from utils.dataset import GapFillDataset
 from utils.encoding import NUCLEOTIDES
 
+# Hyperparameters (match training)
 FLANK_LEN = 200
 GAP_LEN = 50
-CONTEXT_DIM = 256
-HIDDEN_SIZE = 256
+CONTEXT_DIM = 512        # ← Increased
+HIDDEN_SIZE = 512        # ← Increased
 VOCAB_SIZE = 4
+
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
