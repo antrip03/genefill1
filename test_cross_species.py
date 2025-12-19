@@ -200,7 +200,7 @@ def main():
     decoder.to(device)
     
     # Load Streptomyces genome
-    genome_file = "GCF_000203835.1_ASM20383v1_genomic.fna"
+    genome_file = "data/raw/GCF_000203835.1_ASM20383v1_genomic.fna"
     
     try:
         strep_genome = load_genome(genome_file)
