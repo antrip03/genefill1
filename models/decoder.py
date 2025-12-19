@@ -1,5 +1,4 @@
-# models/decoder.py - LSTM Decoder (with attention)
-# Increased hidden size to 512
+# models/decoder.py - Decoder with Context Gating
 
 import torch
 import torch.nn as nn
@@ -7,13 +6,8 @@ import torch.nn as nn
 
 class GapDecoder(nn.Module):
     """
-    LSTM Decoder with context attention at every step.
-    
-    Specifications:
-    - Hidden size: 512 (matching DLGapCloser)
-    - Embedding dim: 512
-    - 2 LSTM layers with dropout
-    - Context concatenation at every decoding step
+    LSTM Decoder with context gating mechanism.
+    Forces the decoder to use context through a learnable gate.
     """
     def __init__(self, context_dim=512, hidden_size=512, vocab_size=4):
         super().__init__()
@@ -24,28 +18,33 @@ class GapDecoder(nn.Module):
         # Embedding layer
         self.embed = nn.Embedding(vocab_size, hidden_size)
         
-        # LSTM: concatenates embedding + context at every step
+        # LSTM (takes only embedding, not context)
         self.lstm = nn.LSTM(
-            input_size=hidden_size + context_dim,  # embedding + context
+            input_size=hidden_size,
             hidden_size=hidden_size,
             num_layers=2,
             dropout=0.2,
             batch_first=True
         )
         
+        # Context gating mechanism (NEW!)
+        # Gates control how much context vs LSTM state to use
+        self.context_gate = nn.Linear(context_dim + hidden_size, hidden_size)
+        self.context_transform = nn.Linear(context_dim, hidden_size)
+        
         # Output projection
         self.fc_out = nn.Linear(hidden_size, vocab_size)
         
-        # Dropout for regularization
+        # Dropout
         self.dropout = nn.Dropout(0.3)
 
     def forward(self, ctx, tgt_in):
         """
-        Forward pass with teacher forcing.
+        Forward pass with context gating.
         
         Args:
-            ctx: [batch, context_dim] - encoder context
-            tgt_in: [batch, gap_len] - target indices
+            ctx: [batch, context_dim]
+            tgt_in: [batch, gap_len]
         
         Returns:
             logits: [batch, gap_len, vocab_size]
@@ -56,32 +55,29 @@ class GapDecoder(nn.Module):
         emb = self.embed(tgt_in)  # [B, G, hidden_size]
         emb = self.dropout(emb)
         
-        # Expand context to match sequence length (KEY: at EVERY step)
-        ctx_expanded = ctx.unsqueeze(1).expand(-1, gap_len, -1)  # [B, G, context_dim]
+        # LSTM processing (without context)
+        lstm_out, _ = self.lstm(emb)  # [B, G, hidden_size]
+        lstm_out = self.dropout(lstm_out)
         
-        # Concatenate embedding with context
-        lstm_input = torch.cat([emb, ctx_expanded], dim=-1)  # [B, G, hidden_size+context_dim]
+        # Transform context to same dimension as LSTM output
+        ctx_transformed = self.context_transform(ctx)  # [B, hidden_size]
+        ctx_expanded = ctx_transformed.unsqueeze(1).expand(-1, gap_len, -1)  # [B, G, hidden_size]
         
-        # LSTM processing
-        out, _ = self.lstm(lstm_input)  # [B, G, hidden_size]
-        out = self.dropout(out)
+        # Compute gate (determines context vs LSTM balance)
+        gate_input = torch.cat([lstm_out, ctx_expanded], dim=-1)  # [B, G, 2*hidden_size]
+        gate = torch.sigmoid(self.context_gate(gate_input))  # [B, G, hidden_size]
+        
+        # Apply gating: interpolate between LSTM and context
+        gated_out = gate * ctx_expanded + (1 - gate) * lstm_out  # [B, G, hidden_size]
         
         # Output projection
-        logits = self.fc_out(out)  # [B, G, vocab_size]
+        logits = self.fc_out(gated_out)  # [B, G, vocab_size]
         
         return logits
 
     def generate(self, ctx, max_len, start_token=0):
         """
-        Autoregressive generation with context attention.
-        
-        Args:
-            ctx: [batch, context_dim]
-            max_len: gap length to generate
-            start_token: starting token index
-        
-        Returns:
-            generated: [batch, max_len]
+        Autoregressive generation with context gating.
         """
         batch_size = ctx.size(0)
         device = ctx.device
@@ -91,19 +87,24 @@ class GapDecoder(nn.Module):
         generated = []
         hidden = None
         
+        # Transform context once
+        ctx_transformed = self.context_transform(ctx)  # [B, hidden_size]
+        
         for step in range(max_len):
             # Embed current token
             emb = self.embed(input_token)  # [B, 1, hidden_size]
             
-            # Concatenate with context (KEY: at EVERY step)
-            ctx_expanded = ctx.unsqueeze(1)  # [B, 1, context_dim]
-            lstm_input = torch.cat([emb, ctx_expanded], dim=-1)
-            
             # LSTM step
-            out, hidden = self.lstm(lstm_input, hidden)  # [B, 1, hidden_size]
+            lstm_out, hidden = self.lstm(emb, hidden)  # [B, 1, hidden_size]
+            
+            # Apply context gating
+            ctx_expanded = ctx_transformed.unsqueeze(1)  # [B, 1, hidden_size]
+            gate_input = torch.cat([lstm_out, ctx_expanded], dim=-1)
+            gate = torch.sigmoid(self.context_gate(gate_input))
+            gated_out = gate * ctx_expanded + (1 - gate) * lstm_out
             
             # Predict next token
-            logits = self.fc_out(out)  # [B, 1, vocab_size]
+            logits = self.fc_out(gated_out)  # [B, 1, vocab_size]
             pred = logits.argmax(dim=-1)  # [B, 1]
             
             generated.append(pred)
