@@ -30,7 +30,7 @@ print("=" * 60)
 print()
 
 # Data
-with open("data/processed/gapfill_samples.pkl", "rb") as f:
+with open("data/processed/mixed_gapfill_samples.pkl", "rb") as f:
     samples = pickle.load(f)
 
 print(f"Total samples: {len(samples)}")
