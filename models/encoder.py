@@ -1,5 +1,5 @@
-# models/encoder.py - CNN + Bi-LSTM Encoder
-# Aligned with DLGapCloser paper specifications
+# models/encoder.py - CNN + Bi-LSTM Encoder (256-dim REVERTED)
+# Aligned with proven working specifications
 
 import torch
 import torch.nn as nn
@@ -9,12 +9,12 @@ class CNNBiLSTMEncoder(nn.Module):
     """
     CNN + Bidirectional LSTM encoder for flanking sequences.
     
-    Matches DLGapCloser specifications:
-    - CNN: 1D conv with kernel=3, output=32 channels
-    - Bi-LSTM: 512 hidden dimensions (paper spec)
-    - Output: context vector for decoder
+    Specifications:
+    - CNN: 1D conv with kernel=3, output=128 channels
+    - Bi-LSTM: 128 hidden dimensions
+    - Output: context vector (256-dim) for decoder
     """
-    def __init__(self, in_channels=4, hidden_channels=32, lstm_hidden=512, context_dim=512):
+    def __init__(self, in_channels=4, hidden_channels=128, lstm_hidden=128, context_dim=256):
         super().__init__()
         
         self.in_channels = in_channels
@@ -23,7 +23,7 @@ class CNNBiLSTMEncoder(nn.Module):
         self.context_dim = context_dim
         
         # CNN feature extraction (1D convolution)
-        # Paper spec: kernel_size=3, output channels=32
+        # Kernel size=3, output channels=128
         self.conv1d = nn.Conv1d(
             in_channels=in_channels,
             out_channels=hidden_channels,
@@ -38,7 +38,7 @@ class CNNBiLSTMEncoder(nn.Module):
         self.pool = nn.MaxPool1d(kernel_size=2, stride=2)
         
         # Bi-directional LSTM
-        # Paper spec: 512 hidden dimensions
+        # 128 hidden dimensions (proven working)
         self.bilstm = nn.LSTM(
             input_size=hidden_channels,
             hidden_size=lstm_hidden,
@@ -65,14 +65,14 @@ class CNNBiLSTMEncoder(nn.Module):
         """
         # CNN feature extraction
         # x: [batch, 4, seq_len]
-        conv_out = self.conv1d(x)  # [batch, 32, seq_len]
+        conv_out = self.conv1d(x)  # [batch, 128, seq_len]
         conv_out = self.relu(conv_out)
         conv_out = self.dropout(conv_out)
         
         # Max pooling
-        pooled = self.pool(conv_out)  # [batch, 32, seq_len/2]
+        pooled = self.pool(conv_out)  # [batch, 128, seq_len/2]
         
-        # Transpose for LSTM: [batch, seq_len/2, 32]
+        # Transpose for LSTM: [batch, seq_len/2, 128]
         lstm_input = pooled.transpose(1, 2)
         
         # Bi-LSTM
@@ -82,12 +82,10 @@ class CNNBiLSTMEncoder(nn.Module):
         # h_n: [2, batch, lstm_hidden] (2 for bidirectional)
         
         # Concatenate final hidden states from both directions
-        h_final = torch.cat([h_n[0], h_n[1]], dim=1)  # [batch, 2*lstm_hidden]
+        h_final = torch.cat([h_n[0], h_n[1]], dim=1)  # [batch, 2*lstm_hidden=256]
         
         # Project to context dimension
-        ctx = self.fc_context(h_final)  # [batch, context_dim]
+        ctx = self.fc_context(h_final)  # [batch, context_dim=256]
         ctx = self.dropout(ctx)
         
         return ctx
-
-
