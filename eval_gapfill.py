@@ -13,9 +13,9 @@ from utils.encoding import NUCLEOTIDES
 # Hyperparameters (MUST MATCH train.py)
 # =============================================================================
 
-FLANK_LEN = 200
+FLANK_LEN = 300
 GAP_LEN = 50
-CONTEXT_DIM = 512        # 512-dim
+CONTEXT_DIM = 1024        # 512-dim
 HIDDEN_SIZE = 1024        # 512-dim
 LSTM_HIDDEN = 256        # BiLSTM 256
 VOCAB_SIZE = 4
