@@ -3,7 +3,7 @@
 import pickle
 from utils.encoding import load_fasta
 
-def make_samples(genome, flank_len=200, gap_len=50, n_samples=60000):
+def make_samples(genome, flank_len=300, gap_len=50, n_samples=100000):
     """
     Extract random gap-filling samples from a single genome.
     
