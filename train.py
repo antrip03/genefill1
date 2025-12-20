@@ -32,9 +32,9 @@ if torch.cuda.is_available():
 BATCH_SIZE = 32           # Proven working
 LR = 1e-3                 # Proven working
 EPOCHS = 100              # More epochs for scaling
-FLANK_LEN = 200
+FLANK_LEN = 300
 GAP_LEN = 50
-CONTEXT_DIM = 512         # SCALED UP
+CONTEXT_DIM = 1024         # SCALED UP
 HIDDEN_SIZE = 1024         # SCALED UP
 VOCAB_SIZE = 4
 LSTM_HIDDEN = 256         # SCALED UP (was 128)
