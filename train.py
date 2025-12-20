@@ -1,4 +1,4 @@
-# train.py - E. COLI ONLY TRAINING (Optimized for Fast Convergence)
+# train.py - E. COLI ONLY (256-dim, PROVEN WORKING)
 
 import pickle
 import torch
@@ -25,18 +25,18 @@ if torch.cuda.is_available():
     print()
 
 # =============================================================================
-# Hyperparameters (OPTIMIZED - Matching Old Working Setup)
+# Hyperparameters (256-dim, REVERTED)
 # =============================================================================
 
-BATCH_SIZE = 32           # Reduced from 64 (more updates per epoch)
-LR = 5e-3                 # Slightly higher than old 1e-3 (compensate for 512-dim)
-EPOCHS = 60               # Same as old
+BATCH_SIZE = 32           # Proven working
+LR = 1e-3                 # Proven working
+EPOCHS = 60               
 FLANK_LEN = 200
 GAP_LEN = 50
-CONTEXT_DIM = 512         # 512-dim (upgraded from 256)
-HIDDEN_SIZE = 512         # 512-dim (upgraded from 256)
+CONTEXT_DIM = 256         # REVERTED
+HIDDEN_SIZE = 256         # REVERTED
 VOCAB_SIZE = 4
-LSTM_HIDDEN = 512         # 512-dim (upgraded from 128)
+LSTM_HIDDEN = 128         # REVERTED
 EARLY_STOPPING_PATIENCE = 20
 
 # Multi-GPU settings
@@ -62,7 +62,7 @@ else:
 
 print()
 print("="*70)
-print("TRAINING CONFIGURATION (E. COLI, OPTIMIZED)")
+print("TRAINING CONFIGURATION (E. COLI, 256-DIM REVERTED)")
 print("="*70)
 print(f"  Dataset: E. coli K-12 (50.8% GC, Balanced)")
 print(f"  Batch Size: {BATCH_SIZE}")
@@ -72,10 +72,9 @@ print(f"  Early Stopping Patience: {EARLY_STOPPING_PATIENCE}")
 print(f"  Context Dim: {CONTEXT_DIM}")
 print(f"  Hidden Size: {HIDDEN_SIZE}")
 print(f"  LSTM Hidden: {LSTM_HIDDEN}")
-print(f"  Architecture: CNN(32ch) + BiLSTM({LSTM_HIDDEN}dim) Encoder")
+print(f"  Architecture: CNN(128ch) + BiLSTM({LSTM_HIDDEN}dim) Encoder")
 print(f"                + 2-Layer LSTM({HIDDEN_SIZE}dim) Decoder")
 print(f"  Multi-GPU: {'Yes' if use_multi_gpu else 'No'}")
-print(f"  Optimizer: Adam (NO weight decay)")
 print("="*70)
 print()
 
@@ -125,21 +124,21 @@ print(f"Workers: {num_workers}")
 print()
 
 # =============================================================================
-# Models (512-dim Specs)
+# Models (256-dim, REVERTED)
 # =============================================================================
 
-print("Initializing models (512-dim)...")
+print("Initializing models (256-dim)...")
 
 encoder = CNNBiLSTMEncoder(
     in_channels=4,
-    hidden_channels=32,           # Paper spec
-    lstm_hidden=LSTM_HIDDEN,      # 512
-    context_dim=CONTEXT_DIM       # 512
+    hidden_channels=128,      # REVERTED
+    lstm_hidden=LSTM_HIDDEN,  # 128
+    context_dim=CONTEXT_DIM   # 256
 )
 
 decoder = GapDecoder(
-    context_dim=CONTEXT_DIM,      # 512
-    hidden_size=HIDDEN_SIZE,      # 512
+    context_dim=CONTEXT_DIM,  # 256
+    hidden_size=HIDDEN_SIZE,  # 256
     vocab_size=VOCAB_SIZE
 )
 
@@ -163,13 +162,12 @@ print(f"Total parameters: {total_params:,}")
 print()
 
 # =============================================================================
-# Optimizer & Loss (NO WEIGHT DECAY)
+# Optimizer & Loss
 # =============================================================================
 
 optimizer = torch.optim.Adam(
     list(encoder.parameters()) + list(decoder.parameters()),
     lr=LR
-    # NO weight_decay (matches old working setup)
 )
 
 criterion = nn.CrossEntropyLoss()
@@ -196,7 +194,7 @@ for epoch in range(EPOCHS):
     epoch_start_time = time.time()
     
     # =========================================================================
-    # Training Phase (with batch progress)
+    # Training Phase
     # =========================================================================
     encoder.train()
     decoder.train()
