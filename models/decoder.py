@@ -1,4 +1,4 @@
-# models/decoder.py - WORKING DECODER (Your Old Architecture, 512-dim)
+# models/decoder.py - Bidirectional LSTM Decoder
 
 import torch
 import torch.nn as nn
@@ -6,81 +6,75 @@ import torch.nn as nn
 
 class GapDecoder(nn.Module):
     """
-    LSTM Decoder with context-initialized hidden AND cell states.
-    This is your PROVEN working architecture.
+    Bidirectional LSTM Decoder for gap filling.
+    
+    Instead of unidirectional decoding, uses BiLSTM to process the gap
+    sequence in both directions, allowing it to look ahead while predicting.
+    
+    Args:
+        context_dim: Dimension of encoder context vector
+        hidden_size: LSTM hidden dimension
+        vocab_size: Number of output classes (4 for ACGT)
     """
     def __init__(self, context_dim=512, hidden_size=512, vocab_size=4):
         super().__init__()
-        self.hidden_size = hidden_size
-        self.vocab_size = vocab_size
         
-        # Embedding layer
+        # Embedding for input tokens (target sequence)
         self.embed = nn.Embedding(vocab_size, hidden_size)
         
-        # LSTM
-        self.lstm = nn.LSTM(
-            hidden_size, 
-            hidden_size, 
-            num_layers=2, 
-            dropout=0.2, 
+        # Bidirectional LSTM (can look both ways)
+        self.bilstm = nn.LSTM(
+            input_size=hidden_size,
+            hidden_size=hidden_size,
+            num_layers=2,
+            bidirectional=True,
+            dropout=0.2,
             batch_first=True
         )
         
-        # Context to hidden state (h0)
+        # Initialize hidden/cell states from context
         self.ctx2h = nn.Linear(context_dim, hidden_size)
-        
-        # Context to cell state (c0) - THIS WAS MISSING!
         self.ctx2c = nn.Linear(context_dim, hidden_size)
         
-        # Output projection
-        self.fc_out = nn.Linear(hidden_size, vocab_size)
+        # Output projection: BiLSTM outputs 2*hidden_size (forward+backward)
+        self.fc_out = nn.Linear(2 * hidden_size, vocab_size)
+        
+        self.dropout = nn.Dropout(0.2)
 
     def forward(self, ctx, tgt_in):
         """
-        Forward pass with context-initialized h0 AND c0.
+        Forward pass.
         
         Args:
-            ctx: [batch, context_dim]
-            tgt_in: [batch, gap_len] (int indices)
+            ctx: [batch, context_dim] - Encoder context vector
+            tgt_in: [batch, seq_len] - Target input sequence (indices)
         
         Returns:
-            logits: [batch, gap_len, vocab_size]
+            logits: [batch, seq_len, vocab_size] - Output probabilities
         """
-        # Initialize BOTH hidden and cell states from context
-        h0 = self.ctx2h(ctx).unsqueeze(0).repeat(2, 1, 1)  # [2, B, H]
-        c0 = self.ctx2c(ctx).unsqueeze(0).repeat(2, 1, 1)  # [2, B, H]
+        # Embed target sequence
+        embedded = self.embed(tgt_in)  # [batch, seq_len, hidden_size]
+        embedded = self.dropout(embedded)
         
-        # Embed target tokens
-        emb = self.embed(tgt_in)  # [B, G, H]
+        # Initialize h0, c0 from context (one initialization for all LSTM layers)
+        # For 2-layer BiLSTM, we need [2*num_layers, batch, hidden_size]
+        # = [4, batch, hidden_size] (2 layers * 2 directions)
         
-        # LSTM forward
-        out, _ = self.lstm(emb, (h0, c0))  # [B, G, H]
+        # Simple approach: use context for all layers (will get learned via gradients)
+        h0_base = self.ctx2h(ctx)  # [batch, hidden_size]
+        c0_base = self.ctx2c(ctx)  # [batch, hidden_size]
         
-        # Output projection
-        logits = self.fc_out(out)  # [B, G, V]
+        # Replicate for 2 layers * 2 directions = 4
+        h0 = h0_base.unsqueeze(0).repeat(4, 1, 1)  # [4, batch, hidden_size]
+        c0 = c0_base.unsqueeze(0).repeat(4, 1, 1)  # [4, batch, hidden_size]
+        
+        # BiLSTM processes full sequence bidirectionally
+        lstm_out, (h_n, c_n) = self.bilstm(embedded, (h0, c0))
+        
+        # lstm_out: [batch, seq_len, 2*hidden_size]
+        lstm_out = self.dropout(lstm_out)
+        
+        # Project to vocabulary
+        logits = self.fc_out(lstm_out)  # [batch, seq_len, vocab_size]
         
         return logits
-
-    def generate(self, ctx, max_len, start_token=0):
-        """
-        Greedy decoding.
-        """
-        batch_size = ctx.size(0)
-        
-        # Initialize hidden and cell states from context
-        h = self.ctx2h(ctx).unsqueeze(0).repeat(2, 1, 1)  # [2, B, H]
-        c = self.ctx2c(ctx).unsqueeze(0).repeat(2, 1, 1)  # [2, B, H]
-        
-        input_token = torch.full((batch_size, 1), start_token,
-                                 dtype=torch.long, device=ctx.device)
-        generated = []
-        
-        for _ in range(max_len):
-            emb = self.embed(input_token)  # [B, 1, H]
-            out, (h, c) = self.lstm(emb, (h, c))  # [B, 1, H]
-            logits = self.fc_out(out)  # [B, 1, V]
-            pred = logits.argmax(dim=-1)  # [B, 1]
-            generated.append(pred)
-            input_token = pred
-        
-        return torch.cat(generated, dim=1)  # [B, max_len]
