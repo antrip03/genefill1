@@ -1,4 +1,5 @@
-# train.py - E. COLI ONLY (256-dim, PROVEN WORKING)
+# train.py - E. COLI ONLY TRAINING (3-LAYER CNN + SCALED 512-DIM)
+# Proven working architecture with increased capacity
 
 import pickle
 import torch
@@ -25,19 +26,19 @@ if torch.cuda.is_available():
     print()
 
 # =============================================================================
-# Hyperparameters (256-dim, REVERTED)
+# Hyperparameters (3-LAYER CNN + SCALED 512-DIM)
 # =============================================================================
 
 BATCH_SIZE = 32           # Proven working
 LR = 1e-3                 # Proven working
-EPOCHS = 60               
+EPOCHS = 100              # More epochs for scaling
 FLANK_LEN = 200
 GAP_LEN = 50
-CONTEXT_DIM = 256         # REVERTED
-HIDDEN_SIZE = 256         # REVERTED
+CONTEXT_DIM = 512         # SCALED UP
+HIDDEN_SIZE = 512         # SCALED UP
 VOCAB_SIZE = 4
-LSTM_HIDDEN = 128         # REVERTED
-EARLY_STOPPING_PATIENCE = 20
+LSTM_HIDDEN = 256         # SCALED UP (was 128)
+EARLY_STOPPING_PATIENCE = 30
 
 # Multi-GPU settings
 USE_MULTI_GPU = True
@@ -62,7 +63,7 @@ else:
 
 print()
 print("="*70)
-print("TRAINING CONFIGURATION (E. COLI, 256-DIM REVERTED)")
+print("TRAINING CONFIGURATION (E. COLI, 3-LAYER CNN + 512-DIM SCALED)")
 print("="*70)
 print(f"  Dataset: E. coli K-12 (50.8% GC, Balanced)")
 print(f"  Batch Size: {BATCH_SIZE}")
@@ -72,9 +73,10 @@ print(f"  Early Stopping Patience: {EARLY_STOPPING_PATIENCE}")
 print(f"  Context Dim: {CONTEXT_DIM}")
 print(f"  Hidden Size: {HIDDEN_SIZE}")
 print(f"  LSTM Hidden: {LSTM_HIDDEN}")
-print(f"  Architecture: CNN(128ch) + BiLSTM({LSTM_HIDDEN}dim) Encoder")
+print(f"  Architecture: CNN(3-layer, 128ch) + BiLSTM({LSTM_HIDDEN}dim) Encoder")
 print(f"                + 2-Layer LSTM({HIDDEN_SIZE}dim) Decoder")
 print(f"  Multi-GPU: {'Yes' if use_multi_gpu else 'No'}")
+print(f"  Optimizer: Adam (NO weight decay)")
 print("="*70)
 print()
 
@@ -124,21 +126,21 @@ print(f"Workers: {num_workers}")
 print()
 
 # =============================================================================
-# Models (256-dim, REVERTED)
+# Models (3-LAYER CNN + 512-DIM)
 # =============================================================================
 
-print("Initializing models (256-dim)...")
+print("Initializing models (3-layer CNN + 512-dim)...")
 
 encoder = CNNBiLSTMEncoder(
     in_channels=4,
-    hidden_channels=128,      # REVERTED
-    lstm_hidden=LSTM_HIDDEN,  # 128
-    context_dim=CONTEXT_DIM   # 256
+    hidden_channels=128,      # 3-layer CNN output
+    lstm_hidden=LSTM_HIDDEN,  # 256
+    context_dim=CONTEXT_DIM   # 512
 )
 
 decoder = GapDecoder(
-    context_dim=CONTEXT_DIM,  # 256
-    hidden_size=HIDDEN_SIZE,  # 256
+    context_dim=CONTEXT_DIM,  # 512
+    hidden_size=HIDDEN_SIZE,  # 512
     vocab_size=VOCAB_SIZE
 )
 
@@ -353,7 +355,7 @@ for epoch in range(EPOCHS):
         break
 
 # =============================================================================
-# Load Best Models & Save
+# Load Best Models & Save Final
 # =============================================================================
 
 encoder_module = encoder.module if use_multi_gpu else encoder
