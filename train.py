@@ -28,7 +28,7 @@ if torch.cuda.is_available():
 # =============================================================================
 
 BATCH_SIZE = 64           # Paper spec
-LR = 3e-3                 # YOUR SPEC (decreased from 3e-3)
+LR = 5e-3                 # YOUR SPEC (decreased from 3e-3)
 EPOCHS = 60             # Paper spec (with early stopping)
 FLANK_LEN = 200
 GAP_LEN = 50
