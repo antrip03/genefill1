@@ -61,7 +61,7 @@ if __name__ == "__main__":
     print()
     
     # Generate samples
-    samples = make_samples(genome, flank_len=200, gap_len=50, n_samples=60000)
+    samples = make_samples(genome, flank_len=300, gap_len=50, n_samples=100000)
     
     # Save to pickle
     output_path = "data/processed/ecoli_gapfill_samples.pkl"
