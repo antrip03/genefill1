@@ -29,7 +29,7 @@ if torch.cuda.is_available():
 # =============================================================================
 
 BATCH_SIZE = 32           # Reduced from 64 (more updates per epoch)
-LR = 2e-3                 # Slightly higher than old 1e-3 (compensate for 512-dim)
+LR = 5e-3                 # Slightly higher than old 1e-3 (compensate for 512-dim)
 EPOCHS = 60               # Same as old
 FLANK_LEN = 200
 GAP_LEN = 50
