@@ -41,7 +41,8 @@ def wave_beam_search(decoder, ctx, gap_len, beam_size=5, beam_expand=10, wave_pe
         wave_period: How often to expand
     """
     batch_size = ctx.size(0)
-    candidates = [([], 0.0) for _ in range(batch_size)]  # (seq_indices, log_prob)
+    candidates = [[([], 0.0)] for _ in range(batch_size)]
+
 
     for step in range(gap_len):
         # Decide beam width for this step
