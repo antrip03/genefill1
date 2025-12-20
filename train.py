@@ -1,4 +1,4 @@
-# train.py - MULTI-GPU TRAINING WITH 512-DIM BiLSTM (DLGapCloser Specs)
+# train.py - E. COLI ONLY TRAINING (512-dim, Batch Progress)
 
 import pickle
 import torch
@@ -6,6 +6,7 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 from models import CNNBiLSTMEncoder, GapDecoder
 from utils.dataset import GapFillDataset
+import time
 
 # =============================================================================
 # GPU Setup
@@ -24,23 +25,23 @@ if torch.cuda.is_available():
     print()
 
 # =============================================================================
-# Hyperparameters (DLGapCloser Specs + 1e-3 LR)
+# Hyperparameters (E. coli Only, 512-dim)
 # =============================================================================
 
 BATCH_SIZE = 64           # Paper spec
-LR = 5e-3                 # YOUR SPEC (decreased from 3e-3)
-EPOCHS = 60             # Paper spec (with early stopping)
+LR = 1e-3                 # Your requested LR
+EPOCHS = 60               # Your requested epochs
 FLANK_LEN = 200
 GAP_LEN = 50
-CONTEXT_DIM = 512         # INCREASED (was 256)
-HIDDEN_SIZE = 512         # INCREASED (was 256)
+CONTEXT_DIM = 512         # 512-dim
+HIDDEN_SIZE = 512         # 512-dim
 VOCAB_SIZE = 4
-LSTM_HIDDEN = 512         # INCREASED (was 128) - Paper spec
-EARLY_STOPPING_PATIENCE = 50
+LSTM_HIDDEN = 512         # 512-dim
+EARLY_STOPPING_PATIENCE = 20
 
 # Multi-GPU settings
-USE_MULTI_GPU = True      # Set False to force single GPU
-SAVE_EVERY = 10           # Save checkpoint every N epochs
+USE_MULTI_GPU = True
+SAVE_EVERY = 10
 
 # Device setup
 if not torch.cuda.is_available():
@@ -54,15 +55,16 @@ else:
     
     if use_multi_gpu:
         print(f"✓ Multi-GPU enabled: Using {num_gpus} GPUs")
-        BATCH_SIZE = BATCH_SIZE * num_gpus  # Scale batch size
+        BATCH_SIZE = BATCH_SIZE * num_gpus
         print(f"  Scaled batch size: {BATCH_SIZE}")
     else:
         print(f"✓ Single GPU mode: {torch.cuda.get_device_name(0)}")
 
 print()
 print("="*70)
-print("TRAINING CONFIGURATION (DLGapCloser Aligned)")
+print("TRAINING CONFIGURATION (E. COLI ONLY)")
 print("="*70)
+print(f"  Dataset: E. coli K-12 (50.8% GC, Balanced)")
 print(f"  Batch Size: {BATCH_SIZE}")
 print(f"  Learning Rate: {LR}")
 print(f"  Max Epochs: {EPOCHS}")
@@ -77,10 +79,11 @@ print("="*70)
 print()
 
 # =============================================================================
-# Data Loading
+# Data Loading (E. coli Only)
 # =============================================================================
 
-with open("data/processed/mixed_gapfill_samples.pkl", "rb") as f:
+print("Loading E. coli dataset...")
+with open("data/processed/ecoli_gapfill_samples.pkl", "rb") as f:
     samples = pickle.load(f)
 
 print(f"Total samples: {len(samples):,}")
@@ -129,13 +132,13 @@ print("Initializing models (512-dim)...")
 encoder = CNNBiLSTMEncoder(
     in_channels=4,
     hidden_channels=32,           # Paper spec
-    lstm_hidden=LSTM_HIDDEN,      # 512 (NEW)
-    context_dim=CONTEXT_DIM       # 512 (NEW)
+    lstm_hidden=LSTM_HIDDEN,      # 512
+    context_dim=CONTEXT_DIM       # 512
 )
 
 decoder = GapDecoder(
-    context_dim=CONTEXT_DIM,      # 512 (NEW)
-    hidden_size=HIDDEN_SIZE,      # 512 (NEW)
+    context_dim=CONTEXT_DIM,      # 512
+    hidden_size=HIDDEN_SIZE,      # 512
     vocab_size=VOCAB_SIZE
 )
 
@@ -176,7 +179,7 @@ print("Loss: CrossEntropyLoss")
 print()
 
 # =============================================================================
-# Training Loop with Early Stopping
+# Training Loop with Batch Progress & Early Stopping
 # =============================================================================
 
 print("="*70)
@@ -188,12 +191,11 @@ best_test_loss = float('inf')
 best_test_acc = 0.0
 patience_counter = 0
 
-print(f"{'Epoch':<8} {'Train Loss':<15} {'Test Loss':<15} {'Test Acc':<15} {'Status':<20}")
-print("-" * 75)
-
 for epoch in range(EPOCHS):
+    epoch_start_time = time.time()
+    
     # =========================================================================
-    # Training Phase
+    # Training Phase (with batch progress)
     # =========================================================================
     encoder.train()
     decoder.train()
@@ -202,31 +204,32 @@ for epoch in range(EPOCHS):
     train_acc = 0.0
     train_batches = 0
     
+    print(f"Epoch {epoch+1}/{EPOCHS}")
+    print("-" * 70)
+    
     for batch_idx, (left, right, gap) in enumerate(train_loader):
-        left = left.to(device)           # [B, L, 4]
-        right = right.to(device)         # [B, L, 4]
-        gap = gap.to(device)             # [B, G]
+        batch_start_time = time.time()
+        
+        left = left.to(device)
+        right = right.to(device)
+        gap = gap.to(device)
 
         # Concatenate flanks and transpose to [B, 4, 2L]
-        flanks = torch.cat([left, right], dim=1)   # [B, 2L, 4]
-        flanks = flanks.permute(0, 2, 1)           # [B, 4, 2L]
+        flanks = torch.cat([left, right], dim=1)
+        flanks = flanks.permute(0, 2, 1)
 
         # Encode flanks with CNN + BiLSTM
-        ctx = encoder(flanks)                      # [B, C]
+        ctx = encoder(flanks)
 
         # Prepare decoder input with start token
-        start = torch.zeros(gap.size(0), 1,
-                            dtype=torch.long, device=device)
-        tgt_in = torch.cat([start, gap[:, :-1]], dim=1)  # [B, G]
+        start = torch.zeros(gap.size(0), 1, dtype=torch.long, device=device)
+        tgt_in = torch.cat([start, gap[:, :-1]], dim=1)
 
         # Decode to predict gap
-        logits = decoder(ctx, tgt_in)              # [B, G, V]
+        logits = decoder(ctx, tgt_in)
 
         # Compute loss
-        loss = criterion(
-            logits.reshape(-1, VOCAB_SIZE),
-            gap.reshape(-1)
-        )
+        loss = criterion(logits.reshape(-1, VOCAB_SIZE), gap.reshape(-1))
 
         # Backprop
         optimizer.zero_grad()
@@ -245,9 +248,19 @@ for epoch in range(EPOCHS):
 
         # Compute accuracy
         with torch.no_grad():
-            preds = logits.argmax(dim=-1)          # [B, G]
+            preds = logits.argmax(dim=-1)
             batch_acc = (preds == gap).float().mean().item()
             train_acc += batch_acc
+        
+        batch_time = time.time() - batch_start_time
+        
+        # Print batch progress every 10 batches
+        if (batch_idx + 1) % 10 == 0:
+            avg_loss = train_loss / train_batches
+            avg_acc = train_acc / train_batches
+            print(f"  Batch [{batch_idx+1}/{len(train_loader)}] | "
+                  f"Loss: {avg_loss:.4f} | Acc: {avg_acc:.4f} | "
+                  f"Time: {batch_time:.2f}s")
     
     train_loss /= train_batches
     train_acc /= train_batches
@@ -262,43 +275,38 @@ for epoch in range(EPOCHS):
     test_acc = 0.0
     test_batches = 0
     
+    print()
+    print("  Evaluating on test set...")
+    
     with torch.no_grad():
-        for left, right, gap in test_loader:
+        for batch_idx, (left, right, gap) in enumerate(test_loader):
             left = left.to(device)
             right = right.to(device)
             gap = gap.to(device)
 
-            # Concatenate flanks and transpose
             flanks = torch.cat([left, right], dim=1)
             flanks = flanks.permute(0, 2, 1)
 
-            # Encode
             ctx = encoder(flanks)
 
-            # Prepare decoder input
-            start = torch.zeros(gap.size(0), 1,
-                                dtype=torch.long, device=device)
+            start = torch.zeros(gap.size(0), 1, dtype=torch.long, device=device)
             tgt_in = torch.cat([start, gap[:, :-1]], dim=1)
 
-            # Decode
             logits = decoder(ctx, tgt_in)
 
-            # Loss
-            loss = criterion(
-                logits.reshape(-1, VOCAB_SIZE),
-                gap.reshape(-1)
-            )
+            loss = criterion(logits.reshape(-1, VOCAB_SIZE), gap.reshape(-1))
             
             test_loss += loss.item()
             test_batches += 1
 
-            # Accuracy
             preds = logits.argmax(dim=-1)
             batch_acc = (preds == gap).float().mean().item()
             test_acc += batch_acc
     
     test_loss /= test_batches
     test_acc /= test_batches
+    
+    epoch_time = time.time() - epoch_start_time
     
     # =========================================================================
     # Early Stopping & Checkpointing
@@ -315,14 +323,18 @@ for epoch in range(EPOCHS):
         
         torch.save(encoder_state, 'encoder_best.pth')
         torch.save(decoder_state, 'decoder_best.pth')
-        status = "✓ Best"
+        status = "✓ BEST MODEL SAVED"
     else:
         patience_counter += 1
-        status = f"patience: {patience_counter}/{EARLY_STOPPING_PATIENCE}"
+        status = f"Patience: {patience_counter}/{EARLY_STOPPING_PATIENCE}"
     
-    # Print progress
-    if (epoch + 1) % 10 == 0 or epoch == 0:
-        print(f"{epoch+1:<8} {train_loss:<15.4f} {test_loss:<15.4f} {test_acc:<15.4f} {status:<20}")
+    # Print epoch summary
+    print()
+    print(f"  Train Loss: {train_loss:.4f} | Train Acc: {train_acc:.4f}")
+    print(f"  Test Loss:  {test_loss:.4f} | Test Acc:  {test_acc:.4f}")
+    print(f"  Epoch Time: {epoch_time:.2f}s | {status}")
+    print("="*70)
+    print()
     
     # Save regular checkpoint
     if (epoch + 1) % SAVE_EVERY == 0:
@@ -331,10 +343,12 @@ for epoch in range(EPOCHS):
         
         torch.save(encoder_state, 'encoder.pth')
         torch.save(decoder_state, 'decoder.pth')
+        print(f"✓ Checkpoint saved at epoch {epoch+1}")
+        print()
     
     # Early stopping check
     if patience_counter >= EARLY_STOPPING_PATIENCE:
-        print(f"\n✓ Early stopping triggered at epoch {epoch+1}")
+        print(f"✓ Early stopping triggered at epoch {epoch+1}")
         print(f"  Best test loss: {best_test_loss:.4f}")
         print(f"  Best test acc: {best_test_acc:.4f}")
         break
