@@ -43,7 +43,7 @@ BATCH_SIZE = 32
 LR = 1e-4
 EPOCHS = 70
 
-DATA_PATH = "data/processed/lambda_gapfill_samples.pkl"
+DATA_PATH = "data/processed/ecoli_gapfill_samples.pkl"
 SAVE_PATH = "dna_mlm_transformer.pth"
 
 print()
