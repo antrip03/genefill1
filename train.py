@@ -30,7 +30,7 @@ if torch.cuda.is_available():
 # =============================================================================
 
 BATCH_SIZE = 32           # Proven working
-LR = 5e-3                 # Proven working
+LR = 3e-3                 # Proven working
 EPOCHS = 100              # More epochs for scaling
 FLANK_LEN = 300
 GAP_LEN = 50
