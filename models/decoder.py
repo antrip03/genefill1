@@ -1,4 +1,4 @@
-# models/decoder.py - DEEPER Unidirectional LSTM Decoder
+# models/decoder.py - Unidirectional LSTM Decoder (ORIGINAL WORKING)
 
 import torch
 import torch.nn as nn
@@ -6,7 +6,9 @@ import torch.nn as nn
 
 class GapDecoder(nn.Module):
     """
-    Deep Unidirectional LSTM Decoder (5 layers, 1024 hidden).
+    Unidirectional LSTM Decoder (4 layers, 1024 hidden).
+    
+    Prevents BiLSTM data leakage while maintaining high capacity.
     """
     def __init__(self, context_dim=1024, hidden_size=1024, vocab_size=4):
         super().__init__()
@@ -17,11 +19,11 @@ class GapDecoder(nn.Module):
         # Embedding layer
         self.embed = nn.Embedding(vocab_size, hidden_size)
         
-        # Deep Unidirectional LSTM (5 layers)
+        # Deep Unidirectional LSTM (4 layers)
         self.lstm = nn.LSTM(
             input_size=hidden_size,
             hidden_size=hidden_size,
-            num_layers=5,        # Increased from 4 to 5
+            num_layers=4,
             dropout=0.3,
             batch_first=True
         )
@@ -33,7 +35,7 @@ class GapDecoder(nn.Module):
         # Output projection
         self.fc_out = nn.Linear(hidden_size, vocab_size)
         
-        self.dropout = nn.Dropout(0.3)
+        self.dropout = nn.Dropout(0.2)
 
     def forward(self, ctx, tgt_in):
         """
@@ -48,9 +50,9 @@ class GapDecoder(nn.Module):
         embedded = self.embed(tgt_in)
         embedded = self.dropout(embedded)
         
-        # Initialize hidden states from context (for ALL 5 layers)
-        h0 = self.ctx2h(ctx).unsqueeze(0).repeat(5, 1, 1)  # [5, batch, 1024]
-        c0 = self.ctx2c(ctx).unsqueeze(0).repeat(5, 1, 1)  # [5, batch, 1024]
+        # Initialize hidden states from context (for ALL 4 layers)
+        h0 = self.ctx2h(ctx).unsqueeze(0).repeat(4, 1, 1)  # [4, batch, hidden_size]
+        c0 = self.ctx2c(ctx).unsqueeze(0).repeat(4, 1, 1)  # [4, batch, hidden_size]
         
         # LSTM forward
         lstm_out, _ = self.lstm(embedded, (h0, c0))
