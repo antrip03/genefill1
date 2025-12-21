@@ -41,7 +41,7 @@ else:
 # ---------------------------------------------------------------------
 BATCH_SIZE = 32
 LR = 1e-4
-EPOCHS = 50
+EPOCHS = 60
 
 DATA_PATH = "data/processed/lambda_gapfill_samples.pkl"
 SAVE_PATH = "dna_mlm_transformer.pth"
