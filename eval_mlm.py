@@ -1,4 +1,4 @@
-# eval_mlm.py - Evaluate BERT-style masked DNA model on E. coli gaps
+# eval_mlm.py - Evaluate BERT-style masked DNA model
 
 import pickle
 import torch
@@ -10,9 +10,9 @@ from utils.encoding import PAD_IDX, NUCLEOTIDES
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 MODEL_PATH = "dna_mlm_transformer.pth"
-DATA_PATH = "data/processed/ecoli_gapfill_samples.pkl"
+DATA_PATH = "data/processed/lambda_gapfill_samples.pkl"  # updated for Lambda Phage
 BATCH_SIZE = 64
-NUM_EXAMPLES_TO_PRINT = 5
+NUM_EXAMPLES_TO_PRINT = 10
 
 
 def collate_fn(batch):
@@ -26,9 +26,18 @@ def collate_fn(batch):
         pad_len = max_len - masked.shape[0]
         if pad_len > 0:
             pad_val = PAD_IDX
-            masked = torch.cat([masked, torch.full((pad_len,), pad_val, dtype=torch.long)], dim=0)
-            target = torch.cat([target, torch.full((pad_len,), pad_val, dtype=torch.long)], dim=0)
-            gmask = torch.cat([gmask, torch.zeros(pad_len, dtype=torch.bool)], dim=0)
+            masked = torch.cat(
+                [masked, torch.full((pad_len,), pad_val, dtype=torch.long)],
+                dim=0
+            )
+            target = torch.cat(
+                [target, torch.full((pad_len,), pad_val, dtype=torch.long)],
+                dim=0
+            )
+            gmask = torch.cat(
+                [gmask, torch.zeros(pad_len, dtype=torch.bool)],
+                dim=0
+            )
         padded_masked.append(masked)
         padded_target.append(target)
         padded_gapmask.append(gmask)
@@ -49,17 +58,25 @@ def main():
     print("=" * 70)
     print("EVALUATION: BERT-STYLE MASKED DNA MODEL")
     print("=" * 70)
-    print(f"Device: {DEVICE}")
-    print(f"Model:  {MODEL_PATH}")
-    print(f"Data:   {DATA_PATH}")
+    print(f"Device:  {DEVICE}")
+    print(f"Model:   {MODEL_PATH}")
+    print(f"Data:    {DATA_PATH}")
     print("=" * 70)
+    print()
 
     # Load samples
     with open(DATA_PATH, "rb") as f:
         samples = pickle.load(f)
 
+    print(f"Total samples loaded: {len(samples):,}")
+
     dataset = MaskedGapDataset(samples)
-    loader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=False, collate_fn=collate_fn)
+    loader = DataLoader(
+        dataset,
+        batch_size=BATCH_SIZE,
+        shuffle=False,
+        collate_fn=collate_fn
+    )
 
     # Load model
     model = DNAMaskedEncoder().to(DEVICE)
@@ -67,12 +84,18 @@ def main():
     model.load_state_dict(state)
     model.eval()
 
+    print(f"Model loaded from {MODEL_PATH}")
+    print()
+
     total_correct = 0
     total_mask = 0
     printed = 0
 
+    print("Evaluating...")
+    print("-" * 70)
+
     with torch.no_grad():
-        for masked_ids, targets, gap_mask in loader:
+        for batch_idx, (masked_ids, targets, gap_mask) in enumerate(loader):
             masked_ids = masked_ids.to(DEVICE)
             targets = targets.to(DEVICE)
             gap_mask = gap_mask.to(DEVICE)
@@ -103,18 +126,24 @@ def main():
                     true_str = indices_to_dna(true_gap)
                     pred_str = indices_to_dna(pred_gap)
 
-                    print("\nExample", printed + 1)
-                    print("TRUE GAP:", true_str)
-                    print("PRED GAP:", pred_str)
+                    match = "✓" if true_str == pred_str else "✗"
+                    print(f"Example {printed+1} {match}")
+                    print(f"  TRUE: {true_str}")
+                    print(f"  PRED: {pred_str}")
+                    print()
 
                     printed += 1
 
     acc = total_correct / max(total_mask, 1)
-    print("\n" + "=" * 70)
-    print(f"Masked-token accuracy on gap positions: {acc:.4f}")
-    print(f"Total masked tokens evaluated: {total_mask}")
+    print("=" * 70)
+    print(f"RESULTS")
+    print("=" * 70)
+    print(f"Masked-token accuracy: {acc:.4f}")
+    print(f"Total masked tokens:   {total_mask:,}")
+    print(f"Correct predictions:   {total_correct:,}")
     print("=" * 70)
 
 
 if __name__ == "__main__":
     main()
+
