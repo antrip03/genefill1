@@ -85,7 +85,7 @@ print()
 # =============================================================================
 
 print("Loading E. coli dataset...")
-with open("data/processed/ecoli_gapfill_samples.pkl", "rb") as f:
+with open("data/processed/ecoli_gapfill_easy_20k_100_10.pkl", "rb") as f:
     samples = pickle.load(f)
 
 print(f"Total samples: {len(samples):,}")
