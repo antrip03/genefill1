@@ -1,6 +1,3 @@
-
-# build_samples.py - E. coli Only Training Data
-
 import pickle
 from utils.encoding import load_fasta
 
@@ -36,13 +33,13 @@ def make_samples(genome, flank_len=100, gap_len=10, n_samples=20000):
 
 if __name__ == "__main__":
     print("="*70)
-    print("E. COLI TRAINING DATA GENERATION")
+    print("TRAINING DATA GENERATION")
     print("="*70)
     print()
     
-    # Load E. coli genome
-    print("Loading E. coli genome...")
-    genome = load_fasta("data/raw/GCA_000482265.1_EC_K12_MG1655_Broad_SNP_genomic.fna")
+    # Load genome
+    print("Loading genome...")
+    genome = load_fasta("data/raw/GCF_030506075.1_ASM3050607v1_genomic.fna")
     
     # Calculate GC content
     gc_count = genome.upper().count('G') + genome.upper().count('C')
@@ -54,7 +51,7 @@ if __name__ == "__main__":
     samples = make_samples(genome, flank_len=100, gap_len=50, n_samples=20000)
     
     # Save to pickle
-    output_path = "data/processed/MG1655_gapfill_samples.pkl"
+    output_path = "data/processed/shigella_gapfill_samples.pkl"
     print(f"\nSaving to {output_path}...")
     with open(output_path, "wb") as f:
         pickle.dump(samples, f)
