@@ -3,19 +3,8 @@
 import pickle
 from utils.encoding import load_fasta
 
-def make_samples(genome, flank_len=100, gap_len=50, n_samples=20000):
-    """
-    Extract random gap-filling samples from a single genome.
-    
-    Args:
-        genome: Full genome sequence string
-        flank_len: Length of flanking sequences (default 200bp)
-        gap_len: Length of gap to predict (default 50bp)
-        n_samples: Number of samples to generate
-    
-    Returns:
-        List of (left_flank, right_flank, gap) tuples
-    """
+def make_samples(genome, flank_len=100, gap_len=10, n_samples=20000):
+  
     import random
     samples = []
     max_start = len(genome) - (2*flank_len + gap_len)
@@ -52,7 +41,7 @@ if __name__ == "__main__":
     
     # Load E. coli genome
     print("Loading E. coli genome...")
-    genome = load_fasta("data/raw/GCF_000005845.2_ASM584v2_genomic.fna")
+    genome = load_fasta("data/raw/GCA_000482265.1_EC_K12_MG1655_Broad_SNP_genomic.fna")
     
     # Calculate GC content
     gc_count = genome.upper().count('G') + genome.upper().count('C')
@@ -64,16 +53,12 @@ if __name__ == "__main__":
     samples = make_samples(genome, flank_len=100, gap_len=50, n_samples=20000)
     
     # Save to pickle
-    output_path = "data/processed/ecoli_gapfill_samples.pkl"
+    output_path = "data/processed/MG1655_gapfill_samples.pkl"
     print(f"\nSaving to {output_path}...")
     with open(output_path, "wb") as f:
         pickle.dump(samples, f)
     
     print("✓ Done!")
     print()
-    print("="*70)
-    print("NEXT STEPS:")
-    print("  1. Update train.py to load 'ecoli_gapfill_samples.pkl'")
-    print("  2. Run: python train.py")
     print("="*70)
 
