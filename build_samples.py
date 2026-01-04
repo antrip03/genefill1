@@ -3,7 +3,7 @@
 import pickle
 from utils.encoding import load_fasta
 
-def make_samples(genome, flank_len=100, gap_len=50, n_samples=20000):
+def make_samples(genome, flank_len=100, gap_len=10, n_samples=20000):
     """
     Extract random gap-filling samples from a single genome.
     
@@ -61,7 +61,7 @@ if __name__ == "__main__":
     print()
     
     # Generate samples
-    samples = make_samples(genome, flank_len=100, gap_len=50, n_samples=20000)
+    samples = make_samples(genome, flank_len=100, gap_len=10, n_samples=20000)
     
     # Save to pickle
     output_path = "data/processed/ecoli_gapfill_samples.pkl"
