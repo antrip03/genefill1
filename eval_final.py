@@ -37,12 +37,12 @@ GENOMES = {
     "5": {
         "name": "Enterobacter cloacae",
         "model": "checkpoints/clocae (1).pth",
-        "data": "data/processed/enterobacter_gapfill_samples.pkl",
+        "data": "data/processed/clocae_gapfill_samples.pkl",
     },
     "6": {
         "name": "Klebsiella pneumoniae",
         "model": "checkpoints/klebsiella (2).pth",
-        "data": "data/processed/klebsiella_gapfill_samples.pkl",
+        "data": "data/processed/klebsiella_samples.pkl",
     },
     "7": {
         "name": "Salmonella enterica Typhimurium LT2",
