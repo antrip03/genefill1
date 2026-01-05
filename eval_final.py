@@ -22,7 +22,7 @@ GENOMES = {
     "2": {
         "name": "E. coli K-12 MG1655",
         "model": "checkpoints/mg165 (2).pth",
-        "data": "data/processed/k12_gapfill_samples.pkl",
+        "data": "data/processed/MG1655_gapfill_samples.pkl",
     },
     "3": {
         "name": "UTI89 (uropathogenic E. coli)",
