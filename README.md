@@ -99,41 +99,7 @@ train_mlm_all_genomes.py trains a BERT‑style transformer encoder with a masked
 
 Command
 bash
-python train_mlm_all_genomes.py
-Core behavior
-Loads all per‑genome *_gapfill_samples.pkl files and builds a unified MaskedGapDataset.
-​
-
-Uses a transformer encoder with:
-
-Moderate hidden size (e.g., 
-d
-model
-=
-256
-d 
-model
- =256),
-
-A small stack of encoder layers (e.g., 3–4),
-
-Multi‑head self‑attention and position‑wise feed‑forward layers,
-
-Layer normalization and dropout.
-​
-
-Applies masked language modeling:
-
-Concatenates left + gap + right,
-
-Replaces the central gap region with [MASK],
-
-Computes cross‑entropy loss only on masked positions.
-​
-
-Logs training/validation loss and masked‑token accuracy per epoch.
-​
-
+python train_mlm_all_genomes.py​
 Saves checkpoints into checkpoints/, e.g.:
 
 text
@@ -154,11 +120,6 @@ From a terminal:
 bash
 python eval_final.py
 You will see a menu like:
-
-text
-======================================================================
-GENOME SELECTION MENU
-======================================================================
 1. ECOR (diverse E. coli reference strains)
 2. E. coli K-12 MG1655
 3. UTI89 (uropathogenic E. coli)
