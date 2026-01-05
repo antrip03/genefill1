@@ -16,37 +16,37 @@ NUM_EXAMPLES_TO_PRINT = 10
 GENOMES = {
     "1": {
         "name": "ECOR (diverse E. coli reference strains)",
-        "model": "ecor (2).pth",
+        "model": "checkpoints/ecor (2).pth",
         "data": "data/processed/ecor_gapfill_samples.pkl",
     },
     "2": {
         "name": "E. coli K-12 MG1655",
-        "model": "mg165 (2).pth",
+        "model": "checkpoints/mg165 (2).pth",
         "data": "data/processed/k12_gapfill_samples.pkl",
     },
     "3": {
         "name": "UTI89 (uropathogenic E. coli)",
-        "model": "uti89.pth",
+        "model": "checkpoints/uti89 (1).pth",
         "data": "data/processed/uti89_gapfill_samples.pkl",
     },
     "4": {
         "name": "Shigella flexneri",
-        "model": "shigella.pth",
+        "model": "checkpoints/shigella.pth",
         "data": "data/processed/shigella_gapfill_samples.pkl",
     },
     "5": {
         "name": "Enterobacter cloacae",
-        "model": "clocae (1).pth",
+        "model": "checkpoints/clocae (1).pth",
         "data": "data/processed/enterobacter_gapfill_samples.pkl",
     },
     "6": {
         "name": "Klebsiella pneumoniae",
-        "model": "klebsiella (1).pth",
+        "model": "checkpoints/klebsiella (2).pth",
         "data": "data/processed/klebsiella_gapfill_samples.pkl",
     },
     "7": {
         "name": "Salmonella enterica Typhimurium LT2",
-        "model": "salmonella.pth",
+        "model": "checkpoints/salmonella (1).pth",
         "data": "data/processed/salmonella_gapfill_samples.pkl",
     },
 }
