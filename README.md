@@ -29,6 +29,7 @@ P(gap∣flanks).
 ​
 
 2. Repository structure
+
 A typical layout for this project:
 
 data/raw/ – Original FASTA/genome files per genome.
@@ -50,9 +51,9 @@ eval_final.py – Menu‑driven evaluation script over seven genomes.
 ​
 
 3. Setup and installation
+
 Clone the repository and create a Python environment (recommended: Python 3.9+).
 ​
-
 Install dependencies, for example:
 
 bash
@@ -64,6 +65,7 @@ Ensure your raw genome data is placed in data/raw/ or match the expected paths i
 ​
 
 4. Building training samples
+
 build_samples_all_genomes.py reads raw genomes, extracts windows, and creates pickled datasets for each genome.
 ​
 
@@ -95,9 +97,9 @@ If you change flank/gap lengths or sampling strategies, update the arguments or 
 ​
 
 5. Training the masked language model
+
 train_mlm_all_genomes.py trains a BERT‑style transformer encoder with a masked language modeling objective over the combined samples.
 ​
-
 Command
 bash
 python train_mlm_all_genomes.py​
@@ -112,10 +114,12 @@ checkpoints/joint_all_genomes.pth
 ​
 
 6. Evaluating models (menu over 7 genomes)
+
 eval_final.py provides a simple text menu to evaluate any of the seven genomes with a single script.
 ​
 
 Interactive usage (terminal)
+
 From a terminal:
 
 bash
@@ -156,6 +160,7 @@ In environments that do not support input(), you can modify eval_final.py to acc
 ​
 
 7. Model architecture (high level)
+
 Input encoding
 
 DNA bases mapped to integer IDs with special mask/pad tokens.
@@ -181,6 +186,7 @@ This setup allows the model to see both left and right flanks while reconstructi
 ​
 
 8. Reproducibility notes
+
 Fix random seeds in train_mlm_all_genomes.py if you want deterministic runs across devices.
 ​
 
@@ -191,6 +197,7 @@ Keep NUCLEOTIDES, PAD_IDX, and token mappings consistent across build, train, an
 ​
 
 9. How to cite / acknowledge
+
 If you use this codebase in a report or project presentation, consider citing:
 
 The original transformer paper (“Attention Is All You Need”) for the architecture.
