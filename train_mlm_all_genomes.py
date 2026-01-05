@@ -49,13 +49,13 @@ EPOCHS = 150
 # (label, data_path, save_path)
 # ---------------------------------------------------------------------
 DATASETS = [
-    ("ECOR",                  "data/processed/ecor_gapfill_samples.pkl",        "ecor.pth"),
-    ("E. coli K-12 MG1655",   "data/processed/MG1655_gapfill_samples.pkl",      "mg165.pth"),
+    ("ECOR",                  "data/processed/ecor_gapfill_samples.pkl",        "ecor (2).pth"),
+    ("E. coli K-12 MG1655",   "data/processed/MG1655_gapfill_samples.pkl",      "mg165 (2).pth"),
     ("UTI89",                 "data/processed/uti89_gapfill_samples.pkl",       "uti89.pth"),
     ("Shigella flexneri",     "data/processed/shigella_gapfill_samples.pkl",    "shigella.pth"),
     ("Salmonella enterica",   "data/processed/salmonella_gapfill_samples.pkl",  "salmonella.pth"),
-    ("Enterobacter cloacae",  "data/processed/clocae_gapfill_samples.pkl",      "clocae.pth"),
-    ("Klebsiella pneumoniae", "data/processed/klebsiella_samples.pkl",          "klebsiella.pth"),
+    ("Enterobacter cloacae",  "data/processed/clocae_gapfill_samples.pkl",      "clocae (1).pth"),
+    ("Klebsiella pneumoniae", "data/processed/klebsiella_samples.pkl",          "klebsiella (1).pth"),
 ]
 
 
