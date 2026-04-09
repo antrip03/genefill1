@@ -6,7 +6,7 @@
 
 **GeneFill** is a genomic deep learning project designed to reconstruct missing DNA sequences within bacterial genomes. By leveraging a **BERT-style Masked Language Model (MLM)**, GeneFill learns the underlying biological "grammar" of diverse bacterial strains to predict missing bases ($P(\text{gap} \mid \text{flanks})$) using the contextual information from upstream and downstream sequences.
 
-This repository was developed for **BYOP 2026** and includes a complete pipeline for preprocessing, training, and multi-genome evaluation.
+This repository was developed for **DSG BYOP 2026** and includes a complete pipeline for preprocessing, training, and multi-genome evaluation.
 
 -----
 
@@ -136,4 +136,4 @@ If you use this codebase, please cite the following foundational works:
 
 -----
 
-*Developed for the 2026 BYOP Project.*
+*Developed for the DSG 2026 BYOP Project.*
