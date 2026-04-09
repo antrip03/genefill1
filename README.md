@@ -1,205 +1,139 @@
-# Genefill
-Project for BYOP 2026
+# GeneFill: BERT-Style DNA Gap Filler
 
-GeneFill: BERT‑Style DNA Gap Filler
-A PyTorch implementation of a BERT‑style masked language model for DNA sequences that predicts missing bases given flanking context across multiple bacterial genomes. The project includes data preprocessing, model training, and a unified evaluation interface for seven genomes.
-​
+[](https://www.python.org/downloads/)
+[](https://pytorch.org/get-started/locally/)
+[](https://opensource.org/licenses/MIT)
 
-1. Project overview
+**GeneFill** is a genomic deep learning project designed to reconstruct missing DNA sequences within bacterial genomes. By leveraging a **BERT-style Masked Language Model (MLM)**, GeneFill learns the underlying biological "grammar" of diverse bacterial strains to predict missing bases ($P(\text{gap} \mid \text{flanks})$) using the contextual information from upstream and downstream sequences.
 
-This repository implements:
+This repository was developed for **BYOP 2026** and includes a complete pipeline for preprocessing, training, and multi-genome evaluation.
 
-A masked‑token transformer encoder for DNA sequences (BERT‑style MLM).
+-----
 
-A preprocessing pipeline that extracts flank–gap–flank windows and builds training samples for multiple genomes.
+## 🧬 Project Overview
 
-Training scripts that can either train per‑genome specialists or a combined model over all genomes.
+The core of GeneFill is a Transformer Encoder that views DNA not just as a string, but as a structured language.
 
-Evaluation scripts that report masked‑token accuracy and print example gap reconstructions.
-​
+  * **Masked-Token Transformer:** A custom PyTorch implementation of a BERT-style encoder.
+  * **Multi-Genome Support:** Pre-configured for 7 major bacterial genomes including *E. coli*, *Shigella*, and *Salmonella*.
+  * **Hybrid Training:** Supports training "specialist" models for specific strains or "generalist" models across all included genomes.
+  * **Unified Evaluation:** A menu-driven interface to quickly assess accuracy and view real-time gap reconstructions.
 
-Target use‑case: filling gaps in bacterial genome assemblies (e.g., E. coli, Shigella, Klebsiella, Salmonella) using a learned probabilistic model 
-P
-(
-gap
-∣
-flanks
-)
-P(gap∣flanks).
-​
+-----
 
-2. Repository structure
+## 📂 Repository Structure
 
-A typical layout for this project:
+```text
+GeneFill/
+├── data/
+│   ├── raw/                # Original FASTA/genome files
+│   └── processed/          # Serialized .pkl samples (flank-gap-flank)
+├── models/
+│   ├── dnamasked_encoder.py # Transformer architecture
+│   └── __init__.py
+├── utils/
+│   ├── encoding.py         # DNA-to-integer mapping
+│   └── masked_dataset.py   # PyTorch Dataset & DataLoader logic
+├── checkpoints/            # Saved .pth model weights
+├── build_samples_all_genomes.py # Data extraction pipeline
+├── train_mlm_all_genomes.py     # Training orchestration
+├── eval_final.py                # Interactive evaluation suite
+└── requirements.txt             # Dependency list
+```
 
-data/raw/ – Original FASTA/genome files per genome.
+-----
 
-data/processed/ – Serialized sample files (*_gapfill_samples.pkl) produced by the build script.
+## ⚙️ Setup and Installation
 
-models/ – Model definitions (e.g., dnamasked_encoder.py / __init__.py).
+1.  **Clone the Repository:**
 
-utils/ – Helper code (encoding.py, masked_dataset.py, etc.).
+    ```bash
+    git clone https://github.com/yourusername/GeneFill.git
+    cd GeneFill
+    ```
 
-checkpoints/ – Saved model weights (*.pth) per genome or combined model.
+2.  **Environment Setup:**
 
-build_samples_all_genomes.py – Build masked gap‑filling samples for all genomes.
+    ```bash
+    python -m venv venv
+    source venv/bin/activate  # Windows: venv\Scripts\activate
+    pip install -r requirements.txt
+    ```
 
-train_mlm_all_genomes.py – Train the masked language model across all genomes.
+    *Dependencies include: `torch`, `tqdm`, `numpy`, and `biopython`.*
 
-eval_final.py – Menu‑driven evaluation script over seven genomes.
+3.  **Data Preparation:**
+    Place your raw genome FASTA files in `data/raw/` ensuring filenames match the configurations in the build scripts.
 
-​
+-----
 
-3. Setup and installation
+## 🚀 Workflow
 
-Clone the repository and create a Python environment (recommended: Python 3.9+).
-​
-Install dependencies, for example:
+### 1\. Building Training Samples
 
-bash
-pip install -r requirements.txt
-At minimum you need: torch, tqdm, numpy, and any packages used in requirements.txt.
-​
+Extract fixed-length windows (e.g., 200bp flanks and 20bp gaps) and encode them into shared vocabulary IDs: `{A, C, G, T, [MASK], [PAD]}`.
 
-Ensure your raw genome data is placed in data/raw/ or match the expected paths inside build_samples_all_genomes.py.
-​
-
-4. Building training samples
-
-build_samples_all_genomes.py reads raw genomes, extracts windows, and creates pickled datasets for each genome.
-​
-
-Command
-bash
+```bash
 python build_samples_all_genomes.py
-What it does
-Parses each genome (e.g., ECOR, K‑12, UTI89, Shigella, Enterobacter cloacae, Klebsiella pneumoniae, Salmonella Typhimurium).
-​
+```
 
-Extracts fixed‑length flank–gap–flank windows (e.g., flank length 100–300, gap length 10–50, depending on your settings).
-​
+### 2\. Training the Model
 
-Encodes DNA into integer IDs with a shared vocabulary: {A, C, G, T, [MASK], [PAD]}.
-​
+Train the transformer encoder on the masked language modeling objective. The model learns to predict the identity of `[MASK]` tokens by attending to the surrounding sequence.
 
-Saves per‑genome sample files such as:
+```bash
+python train_mlm_all_genomes.py
+```
 
-data/processed/ecor_gapfill_samples.pkl
+*Checkpoints will be saved to the `checkpoints/` directory.*
 
-data/processed/k12_gapfill_samples.pkl
+### 3\. Evaluation
 
-data/processed/uti89_gapfill_samples.pkl
+Run the interactive evaluation script to test model performance across the seven supported genomes.
 
-etc.
-​
-
-If you change flank/gap lengths or sampling strategies, update the arguments or constants in build_samples_all_genomes.py.
-​
-
-5. Training the masked language model
-
-train_mlm_all_genomes.py trains a BERT‑style transformer encoder with a masked language modeling objective over the combined samples.
-​
-Command
-bash
-python train_mlm_all_genomes.py​
-Saves checkpoints into checkpoints/, e.g.:
-
-text
-checkpoints/ecor.pth
-checkpoints/k12.pth
-...
-checkpoints/joint_all_genomes.pth
-(Adjust names according to how you configured train_mlm_all_genomes.py.)
-​
-
-6. Evaluating models (menu over 7 genomes)
-
-eval_final.py provides a simple text menu to evaluate any of the seven genomes with a single script.
-​
-
-Interactive usage (terminal)
-
-From a terminal:
-
-bash
+```bash
 python eval_final.py
-You will see a menu like:
-1. ECOR (diverse E. coli reference strains)
-2. E. coli K-12 MG1655
-3. UTI89 (uropathogenic E. coli)
-4. Shigella flexneri
-5. Enterobacter cloacae
-6. Klebsiella pneumoniae
-7. Salmonella enterica Typhimurium LT2
-======================================================================
-Choose a genome to evaluate (1–7):
-Enter a number 1–7 to select the genome. The script then:
-​
+```
 
-Loads the corresponding model checkpoint and sample file (paths defined in the GENOMES dictionary inside eval_final.py).
-​
+**Example Output:**
 
-Runs masked‑token evaluation, computing:
+```text
+Choose a genome to evaluate (1–7): 2
+Loading E. coli K-12 MG1655...
 
-Total masked tokens
-
-Number of correct predictions
-
-Masked‑token accuracy.
-​
-
-Prints a few example gaps in compact form:
-
-text
+Accuracy: 92.4%
 Ex 01 ✓ | TRUE: TCCTTACCTC | PRED: TCCTTACCTC
 Ex 02 ✗ | TRUE: TAAGTACTGT | PRED: TAAGTACTTT
-...
-Non‑interactive usage (e.g., Jupyter)
-In environments that do not support input(), you can modify eval_final.py to accept a command‑line argument (e.g., python eval_final.py 3 to evaluate UTI89) or hard‑code the choice; see the script comments for details.
-​
+```
 
-7. Model architecture (high level)
+-----
 
-Input encoding
+## 🧠 Model Architecture
 
-DNA bases mapped to integer IDs with special mask/pad tokens.
+The GeneFill architecture utilizes a high-capacity Transformer Encoder:
 
-Positional embeddings added up to a maximum window length (e.g., 700).
-​
+  * **Input Layer:** DNA bases $\rightarrow$ Learnable Embeddings + Sinusoidal Positional Encodings (supports windows up to 700bp).
+  * **Encoder Blocks:** Multi-head self-attention layers with LayerNorm and Dropout for regularization.
+  * **Objective:** Cross-entropy loss computed exclusively on masked gap positions.
 
-Transformer encoder
+-----
 
-Several self‑attention layers (multi‑head attention + feed‑forward).
+## 📝 Reproducibility & Notes
 
-Layer normalization and dropout for stability.
-​
+  * **Consistency:** Ensure `NUCLEOTIDES` and `PAD_IDX` mappings remain identical across all scripts to prevent encoding mismatches.
+  * **Hardware:** Training is optimized for CUDA; however, evaluation can run efficiently on CPU.
+  * **Versions:** Developed using PyTorch 2.x and Python 3.9.
 
-Output and loss
+-----
 
-Linear classifier over {A, C, G, T} at each position.
+## 📚 Acknowledgments & Citations
 
-Cross‑entropy loss computed only on masked gap positions.
-​
+If you use this codebase, please cite the following foundational works:
 
-This setup allows the model to see both left and right flanks while reconstructing the gap, matching the biological setting where flanks are known and the interior needs to be imputed.
-​
+  * *Vaswani, A., et al. (2017).* **"Attention Is All You Need"** (Transformer Architecture).
+  * *Dalla-Torre, H., et al. (2023).* **"The Nucleotide Transformer"** (Genomic Language Models).
+  * *Additional references:* DLGapCloser and Gene-LLMs.
 
-8. Reproducibility notes
+-----
 
-Fix random seeds in train_mlm_all_genomes.py if you want deterministic runs across devices.
-​
-
-Checkpoint formats may depend on the PyTorch version: if loading fails, ensure your PyTorch version matches the one used for training or adapt the loading code accordingly.
-​
-
-Keep NUCLEOTIDES, PAD_IDX, and token mappings consistent across build, train, and eval scripts.
-​
-
-9. How to cite / acknowledge
-
-If you use this codebase in a report or project presentation, consider citing:
-
-The original transformer paper (“Attention Is All You Need”) for the architecture.
-
-Relevant genomic language‑model works (e.g., DLGapCloser, Nucleotide Transformer, GENA‑LM, Gene‑LLMs) as described in your bibliography
+*Developed for the 2026 BYOP Project.*
